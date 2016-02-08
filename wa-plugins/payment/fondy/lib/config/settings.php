@@ -1,16 +1,16 @@
 <?php
 
 return array(
-    'merchant_id'    => array(
+    'fondy_id'    => array(
         'value'        => '',
         'title'        => 'ID кошелька',
-        'description'  => 'Идентификатор электронного кошелька Вашего интернет магазина в системе Oplata',
+        'description'  => 'Идентификатор электронного кошелька Вашего интернет магазина в системе Fondy',
         'control_type' => waHtmlControl::INPUT,
     ),
     'secret_key' => array(
         'value'        => '',
         'title'        => 'Секретный ключ',
-        'description'  => 'Ваше кодовое слово полученное от системы Oplata.',
+        'description'  => 'Ваше кодовое слово полученное от системы Fondy.',
         'control_type' => waHtmlControl::INPUT,
     ),
 //    'currency'           => array(

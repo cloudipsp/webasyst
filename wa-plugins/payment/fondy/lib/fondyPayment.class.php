@@ -1,9 +1,9 @@
 <?php
 
-class oplataPayment extends waPayment implements waIPayment
+class fondyPayment extends waPayment implements waIPayment
 {
 
-    private $url = 'https://api.oplata.com/api/checkout/redirect/';
+    private $url = 'https://api.fondy.eu/api/checkout/redirect/';
 
     const ORDER_APPROVED = 'approved';
     const ORDER_DECLINED = 'declined';
@@ -12,39 +12,10 @@ class oplataPayment extends waPayment implements waIPayment
 
     const ORDER_SEPARATOR = ":";
 
-    protected static $responseFields = array('rrn',
-        'masked_card',
-        'sender_cell_phone',
-        'response_status',
-        'currency',
-        'fee',
-        'reversal_amount',
-        'settlement_amount',
-        'actual_amount',
-        'order_status',
-        'response_description',
-        'order_time',
-        'actual_currency',
-        'order_id',
-        'tran_type',
-        'eci',
-        'settlement_date',
-        'payment_system',
-        'approval_code',
-        'merchant_id',
-        'settlement_currency',
-        'payment_id',
-        'sender_account',
-        'card_bin',
-        'response_code',
-        'card_type',
-        'amount',
-        'sender_email'
-    );
 
     public function allowedCurrency()
     {
-        return array('UAH', 'RUB', 'USD');
+        return array('UAH', 'RUB', 'USD', 'GBP' ,'EUR');
     }
 
     public function payment($payment_form_data, $order_data, $auto_submit = false)
@@ -62,12 +33,12 @@ class oplataPayment extends waPayment implements waIPayment
         $contact = new waContact(wa()->getUser()->getId());
         list($email) = $contact->get('email', 'value');
 
-        $redirectUrl = $this->getRelayUrl() . '?&merchant_id=' . $this->merchant_id .
-                            '&app_id=' . $this->app_id;
+        $redirectUrl = $this->getRelayUrl() . '?&fondy_id=' . $this->fondy_id .
+                            '&app_id=' . $this->app_id . '&merchants_id=' . $this->merchant_id;;
 
         $formFields = array(
             'order_id' => $order_data['order_id'] . self::ORDER_SEPARATOR . time(),
-            'merchant_id' => $this->merchant_id,
+            'merchant_id' => $this->fondy_id,
             'order_desc' => $description,
             'amount' => $this->getAmount($order),
             'currency' => $order->currency,
@@ -78,7 +49,7 @@ class oplataPayment extends waPayment implements waIPayment
         );
 
         $formFields['signature'] = $this->getSignature($formFields);
-
+		//PRINT_r($this->app_id);DIE;
         $view = wa()->getView();
 
         $view->assign('form_fields', $formFields);
@@ -95,9 +66,12 @@ class oplataPayment extends waPayment implements waIPayment
 
     protected function callbackInit($request)
     {
-        if (!empty($request['merchant_id'])) {
-            $this->merchant_id = $request['merchant_id'];
-            $this->app_id = $request['app_id'];
+		
+        if (!empty($request['merchants_id'])) {
+			//print_r($request); die; 
+            $this->app_id = $request[app_id];
+            $this->merchant_id = $request[merchants_id];
+       
             list($this->order_id,) = explode(self::ORDER_SEPARATOR, $request['order_id']);
         } else {
             throw new waPaymentException('Invalid invoice number');
@@ -107,18 +81,11 @@ class oplataPayment extends waPayment implements waIPayment
 
     public function callbackHandler($request)
     {
-
+		
         $transactionData = $this->formalizeData($request);
         $transactionData['state'] = self::STATE_CAPTURED;
-
+	
         $url = null;
-
-        $responseSignatureData = $request;
-        foreach ($request as $k => $v) {
-            if (!in_array($k, self::$responseFields)) {
-                unset($responseSignatureData[$k]);
-            }
-        }
 
         if (!empty($request['show_user_response'])) {
 
@@ -129,9 +96,11 @@ class oplataPayment extends waPayment implements waIPayment
                 header("Location: $url");
                 exit;
             }
-
-            if ($request['signature'] != $this->getSignature($responseSignatureData)) {
-
+			$originalResponse = $request;
+        $strs = explode('|', $request['response_signature_string']);
+        $str = (str_replace($strs[0],$this->secret_key,$originalResponse['response_signature_string']));
+            if ($request['signature'] != sha1($str)) {
+           // print_r( sha1($str)); echo "<br>";     print_r($request['signature']); echo "<br>"; print_r ($this->getSignature($responseSignatureData));die;
                 $transactionData['state'] = self::STATE_DECLINED;
                 // redirect to fail
                 $url = $this->getAdapter()->getBackUrl(waAppPayment::URL_FAIL, $transactionData);
@@ -140,11 +109,15 @@ class oplataPayment extends waPayment implements waIPayment
             }
 
             // redirect to success
+			//PRINT_R ($transactionData); DIE;
+			 $transactionData = $this->saveTransaction($transactionData, $request);
+		
             $url = $this->getAdapter()->getBackUrl(waAppPayment::URL_SUCCESS, $transactionData);
             header("Location: $url");
             exit;
         }
 
+		PRINT_r ($transactionRawData);DIE;
         $appPaymentMethod = self::CALLBACK_PAYMENT;
 
         if ($request['order_status'] == self::ORDER_DECLINED) {
@@ -152,12 +125,12 @@ class oplataPayment extends waPayment implements waIPayment
             $appPaymentMethod = null;
         }
 
-        if ($request['signature'] != $this->getSignature($responseSignatureData)) {
+        if ($request['signature'] != sha1($str)) {
             $transactionData['state'] = self::STATE_DECLINED;
             $appPaymentMethod = null;
             throw new waPaymentException('Invalid signature');
         }
-
+		
         $transactionData = $this->saveTransaction($transactionData, $request);
 
         // var_dump($transactionData);
@@ -174,12 +147,13 @@ class oplataPayment extends waPayment implements waIPayment
 
     protected function formalizeData($transactionRawData)
     {
+				//PRINT_r ($transactionRawData);DIE;
         $transactionData = parent::formalizeData($transactionRawData);
         $transactionData['native_id'] = $this->order_id;
         $transactionData['order_id'] = $this->order_id;
         $transactionData['amount'] = ifempty($transactionRawData['amount'], '');
         $transactionData['currency_id'] = $transactionRawData['currency'];
-
+//$transactionData = $this->saveTransaction($transactionData, $request);
         return $transactionData;
     }
 
