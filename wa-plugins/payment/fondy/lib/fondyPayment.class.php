@@ -117,9 +117,9 @@ class fondyPayment extends waPayment implements waIPayment
             exit;
         }
 
-		PRINT_r ($transactionRawData);DIE;
+		//PRINT_r ($transactionRawData);DIE;
         $appPaymentMethod = self::CALLBACK_PAYMENT;
-
+		
         if ($request['order_status'] == self::ORDER_DECLINED) {
             $transactionData['state'] = self::STATE_DECLINED;
             $appPaymentMethod = null;
