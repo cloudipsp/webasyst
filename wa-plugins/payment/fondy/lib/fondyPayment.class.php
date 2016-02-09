@@ -81,9 +81,17 @@ class fondyPayment extends waPayment implements waIPayment
 
     public function callbackHandler($request)
     {
-		
+        if (empty($_POST)) {
+            $fap = json_decode(file_get_contents("php://input"));
+            $_POST = array();
+            foreach ($fap as $key => $val) {
+                $_POST[$key] = $val;
+            }
+            $request = $_POST;
+        }
+       //print_r ($request);
         $transactionData = $this->formalizeData($request);
-        $transactionData['state'] = self::STATE_CAPTURED;
+        $transactionData['state'] = self::STATE_VERIFIED;
 	
         $url = null;
 
@@ -97,10 +105,10 @@ class fondyPayment extends waPayment implements waIPayment
                 exit;
             }
 			$originalResponse = $request;
-        $strs = explode('|', $request['response_signature_string']);
-        $str = (str_replace($strs[0],$this->secret_key,$originalResponse['response_signature_string']));
+            $strs = explode('|', $request['response_signature_string']);
+            $str = (str_replace($strs[0],$this->secret_key,$originalResponse['response_signature_string']));
             if ($request['signature'] != sha1($str)) {
-           // print_r( sha1($str)); echo "<br>";     print_r($request['signature']); echo "<br>"; print_r ($this->getSignature($responseSignatureData));die;
+
                 $transactionData['state'] = self::STATE_DECLINED;
                 // redirect to fail
                 $url = $this->getAdapter()->getBackUrl(waAppPayment::URL_FAIL, $transactionData);
@@ -109,9 +117,15 @@ class fondyPayment extends waPayment implements waIPayment
             }
 
             // redirect to success
-			//PRINT_R ($transactionData); DIE;
+
 			 $transactionData = $this->saveTransaction($transactionData, $request);
-		
+
+            $appPaymentMethod = self::CALLBACK_PAYMENT;
+            $result = $this->execAppCallback($appPaymentMethod, $transactionData);
+            self::addTransactionData($transactionData['id'], $result);
+
+
+
             $url = $this->getAdapter()->getBackUrl(waAppPayment::URL_SUCCESS, $transactionData);
             header("Location: $url");
             exit;
@@ -119,22 +133,26 @@ class fondyPayment extends waPayment implements waIPayment
 
 		//PRINT_r ($transactionRawData);DIE;
         $appPaymentMethod = self::CALLBACK_PAYMENT;
-		
+
         if ($request['order_status'] == self::ORDER_DECLINED) {
             $transactionData['state'] = self::STATE_DECLINED;
             $appPaymentMethod = null;
         }
-
+        $originalResponse = $request;
+        $strs = explode('|', $request['response_signature_string']);
+        $str = (str_replace($strs[0],$this->secret_key,$originalResponse['response_signature_string']));
         if ($request['signature'] != sha1($str)) {
+
             $transactionData['state'] = self::STATE_DECLINED;
             $appPaymentMethod = null;
             throw new waPaymentException('Invalid signature');
         }
-		
+
         $transactionData = $this->saveTransaction($transactionData, $request);
 
-        // var_dump($transactionData);
+        //print_r ($transactionData);
         if ($appPaymentMethod) {
+
             $result = $this->execAppCallback($appPaymentMethod, $transactionData);
             self::addTransactionData($transactionData['id'], $result);
         }
