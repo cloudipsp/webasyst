@@ -15,11 +15,13 @@ class fondyPayment extends waPayment implements waIPayment
 
     public function allowedCurrency()
     {
+
         return array('UAH', 'RUB', 'USD', 'GBP' ,'EUR');
     }
 
     public function payment($payment_form_data, $order_data, $auto_submit = false)
     {
+        //print_r ($this->grop);
         $order = waOrder::factory($order_data);
         $description = preg_replace('/[^\.\?,\[]\(\):;"@\\%\s\w\d]+/', ' ', $order->description);
         $description = preg_replace('/[\s]{2,}/', ' ', $description);
@@ -196,4 +198,17 @@ class fondyPayment extends waPayment implements waIPayment
             return $str;
         }
     }
+	 public static function settingsTemplates($description = true)
+	 {
+         $get_model = new shopSetModel();
+         $group = $get_model->getAll();
+
+         foreach ($group as $groupss)
+         {
+             $groups[$groupss[id]] = $groupss[name];
+         }
+
+		 return $groups;
+	 }
+
 }

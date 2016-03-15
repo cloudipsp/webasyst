@@ -1,6 +1,7 @@
 <?php
 
 return array(
+
     'fondy_id'    => array(
         'value'        => '',
         'title'        => 'ID кошелька',
@@ -12,6 +13,15 @@ return array(
         'title'        => 'Секретный ключ',
         'description'  => 'Ваше кодовое слово полученное от системы Fondy.',
         'control_type' => waHtmlControl::INPUT,
+    ),
+    'group' => array(
+        'value'            => array(),
+        'title'            => /*_wp*/('Список товаров'),
+        'options_callback' => array('fondyPayment', 'settingsTemplates'),
+        'control_type'     => waHtmlControl::SELECT,
+        'options_wrapper'  => array(
+            'control_separator' => '</div><div class="value">',
+        ),
     ),
 //    'currency'           => array(
 //        'value'        => 'RUB',
