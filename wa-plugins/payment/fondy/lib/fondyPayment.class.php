@@ -104,10 +104,11 @@ class fondyPayment extends waPayment implements waIPayment
                 header("Location: $url");
                 exit;
             }
-			$originalResponse = $request;
-            $strs = explode('|', $request['response_signature_string']);
-            $str = (str_replace($strs[0],$this->secret_key,$originalResponse['response_signature_string']));
-            if ($request['signature'] != sha1($str)) {
+		
+			$responseSignature = $_POST['signature'];
+			unset($_POST['response_signature_string']);
+			unset($_POST['signature']);
+			if (self::getSignature($_POST) != $responseSignature) {
 
                 $transactionData['state'] = self::STATE_DECLINED;
                 // redirect to fail
@@ -138,10 +139,10 @@ class fondyPayment extends waPayment implements waIPayment
             $transactionData['state'] = self::STATE_DECLINED;
             $appPaymentMethod = null;
         }
-        $originalResponse = $request;
-        $strs = explode('|', $request['response_signature_string']);
-        $str = (str_replace($strs[0],$this->secret_key,$originalResponse['response_signature_string']));
-        if ($request['signature'] != sha1($str)) {
+        $responseSignature = $_POST['signature'];
+			unset($_POST['response_signature_string']);
+			unset($_POST['signature']);
+			if (self::getSignature($_POST) != $responseSignature) {
 
             $transactionData['state'] = self::STATE_DECLINED;
             $appPaymentMethod = null;
@@ -182,8 +183,10 @@ class fondyPayment extends waPayment implements waIPayment
 
     protected function getSignature($data, $encoded = true)
     {
-        $data = array_filter($data);
-        ksort($data);
+      $data = array_filter($data, function($var) {
+            return $var !== '' && $var !== null;
+        });
+        ksort($data);;
 
         $str = $this->secret_key;
         foreach ($data as $k => $v) {
