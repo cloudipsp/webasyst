@@ -106,11 +106,11 @@ class fondyPayment extends waPayment implements waIPayment
             }
 		
 			$responseSignature = $_POST['signature'];
-			if (isset($response['response_signature_string'])){
-				unset($response['response_signature_string']);
+			if (isset($_POST['response_signature_string'])){
+				unset($_POST['response_signature_string']);
 			}
-			if (isset($response['signature'])){
-				unset($response['signature']);
+			if (isset($_POST['signature'])){
+				unset($_POST['signature']);
 			}
 			if (self::getSignature($_POST) != $responseSignature) {
 
