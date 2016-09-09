@@ -97,7 +97,7 @@ class fondyPayment extends waPayment implements waIPayment
 
         if (!empty($request['show_user_response'])) {
 
-            if ($request['order_status'] == self::ORDER_DECLINED) {
+            if ($request['order_status'] != self::ORDER_APPROVED) {
                 $transactionData['state'] = self::STATE_DECLINED;
                 // redirect to fail
                 $url = $this->getAdapter()->getBackUrl(waAppPayment::URL_FAIL, $transactionData);
