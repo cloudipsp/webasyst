@@ -1,15 +1,22 @@
 <?php
+/**
+ * @author DM
+ * @name fondy
+ 
+ * @link https://fondy.eu
+ * @link https://portal.fondy.eu/ru/info/api
+
+ * @property string $merchant_id Публичный ключ - идентификатор магазина.
+ * @property string $secret_key Приватный ключ
+ */
 
 class fondyPayment extends waPayment implements waIPayment
 {
-
     private $url = 'https://api.fondy.eu/api/checkout/redirect/';
 
     const ORDER_APPROVED = 'approved';
     const ORDER_DECLINED = 'declined';
-
     const SIGNATURE_SEPARATOR = '|';
-
     const ORDER_SEPARATOR = ":";
 
 
@@ -47,11 +54,8 @@ class fondyPayment extends waPayment implements waIPayment
             'lang' => strtolower($lang),
             'sender_email' => $email
         );
-
         $formFields['signature'] = $this->getSignature($formFields);
-		//PRINT_r($this->app_id);DIE;
         $view = wa()->getView();
-
         $view->assign('form_fields', $formFields);
         $view->assign('form_url', $this->getEndpointUrl());
         $view->assign('auto_submit', $auto_submit);
@@ -65,10 +69,8 @@ class fondyPayment extends waPayment implements waIPayment
     }
 
     protected function callbackInit($request)
-    {
-		
+    {		
         if (!empty($request['merchants_id'])) {
-			//print_r($request); die; 
             $this->app_id = $request[app_id];
             $this->merchant_id = $request[merchants_id];
        
@@ -88,80 +90,57 @@ class fondyPayment extends waPayment implements waIPayment
                 $_POST[$key] = $val;
             }
             $request = $_POST;
-        }
-       //print_r ($request);
+        }   
         $transactionData = $this->formalizeData($request);
-        $transactionData['state'] = self::STATE_VERIFIED;
-	
+        $transactionData['state'] = self::STATE_CAPTURED;
         $url = null;
 
         if (!empty($request['show_user_response'])) {
 
             if ($request['order_status'] != self::ORDER_APPROVED) {
-                $transactionData['state'] = self::STATE_DECLINED;
                 // redirect to fail
                 $url = $this->getAdapter()->getBackUrl(waAppPayment::URL_FAIL, $transactionData);
                 header("Location: $url");
                 exit;
             }
-		
+			//check if signature valid
 			$responseSignature = $_POST['signature'];
-			if (isset($_POST['response_signature_string'])){
-				unset($_POST['response_signature_string']);
-			}
-			if (isset($_POST['signature'])){
-				unset($_POST['signature']);
-			}
-			if (self::getSignature($_POST) != $responseSignature) {
 
-                $transactionData['state'] = self::STATE_DECLINED;
+			if (self::getSignature($_POST) != $responseSignature) {
                 // redirect to fail
                 $url = $this->getAdapter()->getBackUrl(waAppPayment::URL_FAIL, $transactionData);
                 header("Location: $url");
                 exit;
             }
-
+			
             // redirect to success
-
-			 $transactionData = $this->saveTransaction($transactionData, $request);
-
-            $appPaymentMethod = self::CALLBACK_PAYMENT;
-            $result = $this->execAppCallback($appPaymentMethod, $transactionData);
-            self::addTransactionData($transactionData['id'], $result);
-
-
-
             $url = $this->getAdapter()->getBackUrl(waAppPayment::URL_SUCCESS, $transactionData);
             header("Location: $url");
             exit;
         }
-
-		//PRINT_r ($transactionRawData);DIE;
+		
         $appPaymentMethod = self::CALLBACK_PAYMENT;
-
-        if ($request['order_status'] == self::ORDER_DECLINED) {
+		
+        if ($request['order_status'] != self::ORDER_APPROVED) {
             $transactionData['state'] = self::STATE_DECLINED;
-            $appPaymentMethod = null;
+            $appPaymentMethod = self::CALLBACK_DECLINE;
         }
+		//check if signature valid
         $responseSignature = $_POST['signature'];
-			unset($_POST['response_signature_string']);
-			unset($_POST['signature']);
-			if (self::getSignature($_POST) != $responseSignature) {
 
+		if (self::getSignature($_POST) != $responseSignature) {
             $transactionData['state'] = self::STATE_DECLINED;
-            $appPaymentMethod = null;
+            $appPaymentMethod = self::CALLBACK_DECLINE;
             throw new waPaymentException('Invalid signature');
         }
-
+		
         $transactionData = $this->saveTransaction($transactionData, $request);
-
-        //print_r ($transactionData);
+	
         if ($appPaymentMethod) {
-
             $result = $this->execAppCallback($appPaymentMethod, $transactionData);
             self::addTransactionData($transactionData['id'], $result);
         }
-
+		
         echo 'OK';
         return array(
             'template' => false
@@ -170,13 +149,14 @@ class fondyPayment extends waPayment implements waIPayment
 
     protected function formalizeData($transactionRawData)
     {
-				//PRINT_r ($transactionRawData);DIE;
         $transactionData = parent::formalizeData($transactionRawData);
         $transactionData['native_id'] = $this->order_id;
         $transactionData['order_id'] = $this->order_id;
-        $transactionData['amount'] = ifempty($transactionRawData['amount'], '');
+        $amount = ifempty($transactionRawData['amount'], '');
+		$transactionData['amount'] =  $amount/100 ;
         $transactionData['currency_id'] = $transactionRawData['currency'];
-//$transactionData = $this->saveTransaction($transactionData, $request);
+		$transactionData['view_data'] = 'Статус заказа: ' .  $transactionRawData['order_status'] . ', ID заказа в системе: ' . $transactionRawData['payment_id'] ;
+		$transactionData['result'] = 1;
         return $transactionData;
     }
 
@@ -187,6 +167,13 @@ class fondyPayment extends waPayment implements waIPayment
 
     protected function getSignature($data, $encoded = true)
     {
+		if (isset($data['response_signature_string'])){
+			unset($data['response_signature_string']);
+		}
+		
+		if (isset($data['signature'])){
+			unset($data['signature']);
+		}
       $data = array_filter($data, function($var) {
             return $var !== '' && $var !== null;
         });
