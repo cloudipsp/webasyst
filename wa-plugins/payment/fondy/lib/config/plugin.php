@@ -5,7 +5,7 @@ return array(
     'icon'        => 'img/fondy_fav.png',
     'logo'        => 'img/logo.png',
     'vendor'      => '1060206',
-    'version'     => '1.0.0',
+    'version'     => '0.1.0',
     'locale'      => array('ru_RU', ),
     'type'        => waPayment::TYPE_ONLINE,
 );
