@@ -165,6 +165,9 @@ class fondyPayment extends waPayment implements waIPayment
         return $this->url;
     }
 
+	protected function fondy_filter($var) {
+		return $var !== '' && $var !== null;
+	}
     protected function getSignature($data, $encoded = true)
     {
 		if (isset($data['response_signature_string'])){
@@ -174,10 +177,8 @@ class fondyPayment extends waPayment implements waIPayment
 		if (isset($data['signature'])){
 			unset($data['signature']);
 		}
-      $data = array_filter($data, function($var) {
-            return $var !== '' && $var !== null;
-        });
-        ksort($data);;
+		$data = array_filter($data, array($this, 'fondy_filter'));
+        ksort($data);
 
         $str = $this->secret_key;
         foreach ($data as $k => $v) {
@@ -188,6 +189,6 @@ class fondyPayment extends waPayment implements waIPayment
             return sha1($str);
         } else {
             return $str;
-        }
+		}
     }
 }
