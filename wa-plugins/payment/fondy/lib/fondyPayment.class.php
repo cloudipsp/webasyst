@@ -37,12 +37,11 @@ class fondyPayment extends waPayment implements waIPayment {
 		$redirectUrl = $this->getRelayUrl() . '?&fondy_id=' . $this->fondy_id .
 		               '&app_id=' . $this->app_id . '&merchants_id=' . $this->merchant_id;;
 
-		$amount = $this->getAmount( $order );
 		$formFields              = array(
-			'order_id'            => $order_data['order_id'] . self::ORDER_SEPARATOR . $amount,
+			'order_id'            => $order_data['order_id'] . self::ORDER_SEPARATOR . time(),
 			'merchant_id'         => $this->fondy_id,
 			'order_desc'          => mb_substr( trim( $description ), 0, 255, "UTF-8" ),
-			'amount'              => $amount,
+			'amount'              => $this->getAmount( $order ),
 			'currency'            => $order->currency,
 			'server_callback_url' => $redirectUrl,
 			'response_url'        => $redirectUrl . '&show_user_response=1',
