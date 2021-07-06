@@ -37,11 +37,12 @@ class fondyPayment extends waPayment implements waIPayment {
 		$redirectUrl = $this->getRelayUrl() . '?&fondy_id=' . $this->fondy_id .
 		               '&app_id=' . $this->app_id . '&merchants_id=' . $this->merchant_id;;
 
+		$amount = $this->getAmount( $order );
 		$formFields              = array(
-			'order_id'            => $order_data['order_id'] . self::ORDER_SEPARATOR . time(),
+			'order_id'            => $order_data['order_id'] . self::ORDER_SEPARATOR . $amount,
 			'merchant_id'         => $this->fondy_id,
 			'order_desc'          => mb_substr( trim( $description ), 0, 255, "UTF-8" ),
-			'amount'              => $this->getAmount( $order ),
+			'amount'              => $amount,
 			'currency'            => $order->currency,
 			'server_callback_url' => $redirectUrl,
 			'response_url'        => $redirectUrl . '&show_user_response=1',
@@ -134,6 +135,7 @@ class fondyPayment extends waPayment implements waIPayment {
 	}
 
 	protected function formalizeData( $transactionRawData ) {
+
 		$transactionData                = parent::formalizeData( $transactionRawData );
 		$transactionData['native_id']   = $this->order_id;
 		$transactionData['order_id']    = $this->order_id;
