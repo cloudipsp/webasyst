@@ -12,7 +12,7 @@ class fondyPayment extends waPayment implements waIPayment {
 	private $url = 'https://api.fondy.eu/api/checkout/redirect/';
 
 	const ORDER_APPROVED = 'approved';
-	const ORDER_DECLINED = 'declined';
+    const ORDER_DECLINED = 'declined';
 	const SIGNATURE_SEPARATOR = '|';
 	const ORDER_SEPARATOR = ":";
 
@@ -85,6 +85,7 @@ class fondyPayment extends waPayment implements waIPayment {
 		}
 		$transactionData          = $this->formalizeData( $request );
 		$transactionData['state'] = self::STATE_CAPTURED;
+		$transactionData['type'] = self::OPERATION_AUTH_CAPTURE;
 		$url                      = null;
 
 		if ( ! empty( $request['show_user_response'] ) ) {
@@ -122,22 +123,14 @@ class fondyPayment extends waPayment implements waIPayment {
 
 		if ( self::getSignature( $_POST ) != $responseSignature ) {
 			$transactionData['state'] = self::STATE_DECLINED;
-			$appPaymentMethod         = self::CALLBACK_DECLINE;
 			throw new waPaymentException( 'Invalid signature' );
 		}
 
 		$transactionData = $this->saveTransaction( $transactionData, $request );
 
-		if ( $appPaymentMethod ) {
-			$result = $this->execAppCallback( $appPaymentMethod, $transactionData );
-			self::addTransactionData( $transactionData['id'], $result );
-		}
+        $result = $this->execAppCallback( $appPaymentMethod, $transactionData );
 
-		echo 'OK';
-
-		return array(
-			'template' => false
-		);
+		return $result;
 	}
 
 	protected function formalizeData( $transactionRawData ) {
