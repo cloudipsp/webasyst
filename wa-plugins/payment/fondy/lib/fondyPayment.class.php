@@ -37,12 +37,11 @@ class fondyPayment extends waPayment implements waIPayment {
 		$redirectUrl = $this->getRelayUrl() . '?&fondy_id=' . $this->fondy_id .
 		               '&app_id=' . $this->app_id . '&merchants_id=' . $this->merchant_id;;
 
-		$amount = $this->getAmount( $order );
 		$formFields              = array(
-			'order_id'            => $order_data['order_id'] . self::ORDER_SEPARATOR . $amount,
+			'order_id'            => $order_data['order_id'] . self::ORDER_SEPARATOR . time(),
 			'merchant_id'         => $this->fondy_id,
 			'order_desc'          => mb_substr( trim( $description ), 0, 255, "UTF-8" ),
-			'amount'              => $amount,
+			'amount'              => $this->getAmount( $order ),
 			'currency'            => $order->currency,
 			'server_callback_url' => $redirectUrl,
 			'response_url'        => $redirectUrl . '&show_user_response=1',
@@ -113,21 +112,14 @@ class fondyPayment extends waPayment implements waIPayment {
 			exit;
 		}
 
-        $appPaymentMethod = self::CALLBACK_PAYMENT;
+		$appPaymentMethod = self::CALLBACK_PAYMENT;
 
 		if ( $request['order_status'] != self::ORDER_APPROVED ) {
 			$transactionData['state'] = self::STATE_DECLINED;
 			$appPaymentMethod         = self::CALLBACK_NOTIFY;
 		}
-        if ($request['reversal_amount'] != 0) {
-            $transactionData['type'] = self::OPERATION_REFUND;
-            $transactionData['amount'] = $request['reversal_amount'] / 100;
-            if ($request['order_status'] == 'reversed') {
-                $appPaymentMethod = self::CALLBACK_REFUND;
-                $transactionData['state'] = self::STATE_REFUNDED;
-            } else {
-                $transactionData['state'] = self::STATE_PARTIAL_REFUNDED;
-            }
+        if (isset($request['reversal_amount']) and $request['reversal_amount'] != 0) {
+            return false;
         }
 		//check if signature valid
 		$responseSignature = $_POST['signature'];
