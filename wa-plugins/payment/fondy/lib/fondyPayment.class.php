@@ -84,8 +84,6 @@ class fondyPayment extends waPayment implements waIPayment {
 			$request = $_POST;
 		}
 		$transactionData          = $this->formalizeData( $request );
-		$transactionData['state'] = self::STATE_CAPTURED;
-		$transactionData['type'] = self::OPERATION_AUTH_CAPTURE;
 		$url                      = null;
 
 		if ( ! empty( $request['show_user_response'] ) ) {
@@ -112,22 +110,34 @@ class fondyPayment extends waPayment implements waIPayment {
 			exit;
 		}
 
+        //check if signature valid
+        $responseSignature = $_POST['signature'];
+
+        if ( self::getSignature( $_POST ) != $responseSignature ) {
+            $transactionData['state'] = self::STATE_DECLINED;
+            throw new waPaymentException( 'Invalid signature' );
+        }
+
 		$appPaymentMethod = self::CALLBACK_PAYMENT;
 
 		if ( $request['order_status'] != self::ORDER_APPROVED ) {
 			$transactionData['state'] = self::STATE_DECLINED;
 			$appPaymentMethod         = self::CALLBACK_NOTIFY;
-		}
+		} else {
+            $transactionData['state'] = self::STATE_CAPTURED;
+            $transactionData['type'] = self::OPERATION_AUTH_CAPTURE;
+        }
         if (isset($request['reversal_amount']) and $request['reversal_amount'] != 0) {
+            $appPaymentMethod = self::CALLBACK_NOTIFY;
+            $transactionData = [];
+            $transactionData['order_id']    = $this->order_id;
+            $transactionData['amount']      = $request['actual_amount'] / 100;
+            $transactionData['currency_id'] = $request['currency'];
+            $transactionData['view_data']   = 'Возврат. Сумма возварата '. floatval($request['reversal_amount'] / 100) .' . Статус заказа: ' . $request['order_status'] . ', ID заказа в системе: ' . $request['payment_id'];
+            $this->execAppCallback( $appPaymentMethod, $transactionData );
             return false;
         }
-		//check if signature valid
-		$responseSignature = $_POST['signature'];
 
-		if ( self::getSignature( $_POST ) != $responseSignature ) {
-			$transactionData['state'] = self::STATE_DECLINED;
-			throw new waPaymentException( 'Invalid signature' );
-		}
 
 		$transactionData = $this->saveTransaction( $transactionData, $request );
 
