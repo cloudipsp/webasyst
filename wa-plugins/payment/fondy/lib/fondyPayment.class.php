@@ -119,13 +119,13 @@ class fondyPayment extends waPayment implements waIPayment {
 			$appPaymentMethod         = self::CALLBACK_NOTIFY;
 		}
         if (isset($request['reversal_amount']) and $request['reversal_amount'] != 0) {
-            $transactionData['type'] = self::OPERATION_REFUND;
-            $transactionData['amount'] = $request['reversal_amount'] / 100;
             if ($request['order_status'] == 'reversed') {
                 $appPaymentMethod = self::CALLBACK_REFUND;
                 $transactionData['state'] = self::STATE_REFUNDED;
+                $transactionData['type'] = self::OPERATION_REFUND;
+                $transactionData['amount'] = $request['reversal_amount'] / 100;
             } else {
-                $transactionData['state'] = self::STATE_PARTIAL_REFUNDED;
+                return false;
             }
         }
 		//check if signature valid
